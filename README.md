@@ -25,11 +25,11 @@ sudo apt-get install g++
 Skompiluj kod źródłowy przy użyciu kompilatora `g++`. W terminalu wpisz:
 
 ```bash
-g++ bouncing_balls.cpp -o bouncing_balls -lglut -lGLU -lGL
+g++ main.cpp -o bouncing_balls -lglut -lGLU -lGL
 ```
 
 Tutaj:
-- `bouncing_balls.cpp` jest nazwą pliku źródłowego.
+- `main.cpp` jest nazwą pliku źródłowego.
 - `-o bouncing_balls` oznacza, że wyjściowy plik wykonywalny będzie nosił nazwę `bouncing_balls`.
 - `-lglut -lGLU -lGL` dodaje odpowiednie biblioteki.
 
@@ -45,6 +45,3 @@ Po skompilowaniu, uruchom program:
 
 - Naciśnij klawisz spacji, aby zakończyć program.
 
-## Licencja
-
-Ten projekt jest dostępny na licencji MIT. Zobacz plik `LICENSE` po więcej informacji.
