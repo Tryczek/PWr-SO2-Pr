@@ -10,18 +10,20 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
+#include <condition_variable>
 
-int BOUNCE_LIMIT = 5;  // Limit odbiæ po którym pi³ka zniknie
+int BOUNCE_LIMIT = 5;
 
 class GrayObs;
 class Ball;
 
 std::mutex mutex;
+std::condition_variable ballCond;
 std::atomic<bool> running(true);
-std::vector<std::thread> ballThreads;  // Wektor przechowuj¹cy w¹tki dla ka¿dej pi³ki
-std::vector<std::unique_ptr<Ball>> balls;  // Wektor pi³ek
+std::vector<std::thread> ballThreads;
+std::vector<std::unique_ptr<Ball>> balls;
 std::chrono::steady_clock::time_point lastBallTime = std::chrono::steady_clock::now();
-int refreshMillis = 16;  // Próba uzyskania p³ynniejszej animacji przy oko³o 60 FPS
+int refreshMillis = 16;
 std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -33,19 +35,18 @@ float getRandom() {
 // Klasa reprezentuj¹ca pi³kê
 class Ball {
 public:
-    GLfloat radius;  // Promieñ pi³ki
-    GLfloat x, y;  // Pozycja pi³ki
-    GLfloat xSpeed, ySpeed;  // Prêdkoœæ pi³ki w osiach X i Y
-    GLfloat colorR, colorG, colorB;  // Kolor pi³ki
-    int numBounces;  // Liczba odbiæ pi³ki
-    bool active;  // Flaga okreœlaj¹ca, czy pi³ka jest aktywna
-    bool attached;  // Flaga okreœlaj¹ca, czy pi³ka jest przyklejona do GrayObs
-    std::chrono::steady_clock::time_point cooldownEnd;  // Czas koñca cooldownu
+    GLfloat radius;
+    GLfloat x, y;
+    GLfloat xSpeed, ySpeed;
+    GLfloat colorR, colorG, colorB;
+    int numBounces;
+    bool active;
+    bool attached;
+    std::chrono::steady_clock::time_point cooldownEnd;
 
-    // Konstruktor Ball inicjalizuje losow¹ prêdkoœæ i kolor pi³ki
     Ball() : radius(0.1f), x(0.0f), y(-1.0f + radius),
-             xSpeed(getRandom() * 0.12f - 0.01f),
-             ySpeed(getRandom() * 0.08f + 0.01f),
+             xSpeed(getRandom() * 0.24f - 0.12f),
+             ySpeed(getRandom() * 0.16f - 0.08f),
              colorR(getRandom()), colorG(getRandom()), colorB(getRandom()),
              numBounces(0), active(true), attached(false) {}
 
@@ -56,23 +57,20 @@ public:
 // Klasa reprezentuj¹ca szary obszar
 class GrayObs {
 private:
-    GLfloat obsWidth;  // Szerokoœæ obszaru
-    GLfloat obsHeight;  // Wysokoœæ obszaru
-    GLfloat obsX;  // Pozycja X obszaru
-    GLfloat obsY;  // Pozycja Y obszaru
-    GLfloat obsSpeed;  // Prêdkoœæ obszaru
-    GLfloat colorR, colorG, colorB;  // Kolor obszaru
-    int dir;  // Kierunek ruchu obszaru
+    GLfloat obsWidth;
+    GLfloat obsHeight;
+    GLfloat obsX;
+    GLfloat obsY;
+    GLfloat obsSpeed;
+    GLfloat colorR, colorG, colorB;
+    int dir;
 
 public:
-    // Wektor przechowuj¹cy pary pi³ek i ich wzglêdne pozycje przyklejenia
     std::vector<std::pair<Ball*, std::pair<GLfloat, GLfloat>>> attachedBalls;
 
-    // Konstruktor inicjalizuj¹cy GrayObs
     GrayObs() : obsWidth(0.4f), obsHeight(0.8f), obsX(-0.55f), obsY(0.75f - obsHeight),
                 obsSpeed(getRandom() * 0.02f + 0.01f),
                 colorR(0.5f), colorG(0.5f), colorB(0.5f), dir(1) {}
-
     // Metoda rysuj¹ca GrayObs
     void draw() {
         glColor3f(colorR, colorG, colorB);
@@ -147,33 +145,31 @@ GrayObs grayObs;  // Globalna instancja GrayObs
 // Metoda uruchamiaj¹ca w¹tek pi³ki
 void Ball::run() {
     while (running && active) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(16));  // Przerwa na 16 ms, aby uzyskaæ oko³o 60 FPS
-        std::lock_guard<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mutex);
+        if (ballCond.wait_for(lock, std::chrono::milliseconds(16), [this] { return !active || !running; })) {
+            if (!running || !active) break; // Wyjœcie, jeœli pi³ka nie jest aktywna lub running jest false
+        }
         if (numBounces < BOUNCE_LIMIT && !attached) {
             x += xSpeed / 4;
             y += ySpeed / 4;
-
-            // Odbicie od krawêdzi
             if (x + radius > 1.0f || x - radius < -1.0f) {
                 xSpeed = -xSpeed;
                 numBounces++;
             }
-
             if (y + radius > 1.0f || y - radius < -1.0f) {
                 ySpeed = -ySpeed;
                 numBounces++;
             }
-
             GLfloat attachX, attachY;
-            // Sprawdzenie kolizji z GrayObs
             if (grayObs.checkCollision(this, attachX, attachY) && std::chrono::steady_clock::now() > cooldownEnd) {
                 grayObs.attachBall(this, attachX, attachY);
             }
         } else if (!attached) {
-            active = false;  // Zakoñczenie dzia³alnoœci pi³ki
+            active = false;
         }
     }
 }
+
 
 // Metoda rysuj¹ca pi³kê
 void Ball::draw() {
@@ -212,6 +208,7 @@ void initGL() {
 void keyboard(unsigned char key, int x, int y) {
     if (key == 32) { // Spacja
         running = false;
+        ballCond.notify_all();
         for (auto& thread : ballThreads) {
             if (thread.joinable()) {
                 thread.join();
@@ -224,16 +221,17 @@ void keyboard(unsigned char key, int x, int y) {
 // Funkcja zarz¹dzaj¹ca pi³kami
 void manageBalls() {
     while (running) {
-        auto currentTime = std::chrono::steady_clock::now();
-        double elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastBallTime).count();
-        if (elapsedTime >= 2000 + rand() % 8000) {
-            std::lock_guard<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mutex);
+        auto nextBallTime = lastBallTime + std::chrono::milliseconds(2000 + rand() % 8000);
+        if (ballCond.wait_until(lock, nextBallTime, [] { return !running; })) {
+            break; // Wyjœcie, jeœli running jest false
+        }
+        if (running) {
             std::unique_ptr<Ball> ball(new Ball());
             ballThreads.emplace_back(&Ball::run, ball.get());
             balls.push_back(std::move(ball));
-            lastBallTime = currentTime;
+            lastBallTime = std::chrono::steady_clock::now();
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -260,6 +258,7 @@ int main(int argc, char **argv) {
     glutMainLoop();
 
     running = false;
+    ballCond.notify_all();
     if (managerThread.joinable()) {
         managerThread.join();
     }
