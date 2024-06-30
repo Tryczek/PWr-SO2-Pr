@@ -1,18 +1,18 @@
 
 # Bouncing Balls
 
-## Opis
+## Description
 
-Ten projekt wizualizuje animację odbijających się piłek przy użyciu OpenGL i FreeGLUT. Piłki pojawiają się losowo, odbijają się od krawędzi ekranu oraz od szarego obszaru (`GrayObs`), do którego mogą się przyklejać i od którego mogą być odpychane.
+This project visualizes an animation of bouncing balls using OpenGL and FreeGLUT. The balls appear randomly, bounce off the edges of the screen, and interact with a gray area (`GrayObs`), to which they can stick and from which they can be repelled.
 
-## Wymagania
+## Requirements
 
-- Kompilator C++ (g++)
-- Biblioteki FreeGLUT i OpenGL
+- C++ compiler (g++)
+- FreeGLUT and OpenGL libraries
 
-## Instalacja zależności
+## Dependency Installation
 
-Upewnij się, że masz zainstalowane wymagane biblioteki. Możesz je zainstalować za pomocą menedżera pakietów swojego systemu. Dla systemów opartych na Debianie/Ubuntu, użyj:
+Ensure that you have the required libraries installed. You can install them using your system's package manager. For Debian/Ubuntu-based systems, use:
 
 ```bash
 sudo apt-get update
@@ -20,28 +20,27 @@ sudo apt-get install freeglut3 freeglut3-dev
 sudo apt-get install g++
 ```
 
-## Kompilacja
+## Compilation
 
-Skompiluj kod źródłowy przy użyciu kompilatora `g++`. W terminalu wpisz:
+Compile the source code using the `g++` compiler. In the terminal, type:
 
 ```bash
 g++ main.cpp -o bouncing_balls -lglut -lGLU -lGL
 ```
 
-Tutaj:
-- `main.cpp` jest nazwą pliku źródłowego.
-- `-o bouncing_balls` oznacza, że wyjściowy plik wykonywalny będzie nosił nazwę `bouncing_balls`.
-- `-lglut -lGLU -lGL` dodaje odpowiednie biblioteki.
+Here:
+- `main.cpp` is the name of the source file.
+- `-o bouncing_balls` specifies that the output executable will be named `bouncing_balls`.
+- `-lglut -lGLU -lGL` links the appropriate libraries.
 
-## Uruchomienie
+## Running
 
-Po skompilowaniu, uruchom program:
+After compiling, run the program:
 
 ```bash
 ./bouncing_balls
 ```
 
-## Sterowanie
+## Controls
 
-- Naciśnij klawisz spacji, aby zakończyć program.
-
+- Press the spacebar to exit the program.
